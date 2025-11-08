@@ -1,63 +1,88 @@
-Simple Linux Packet Sniffer
+# simple_sniffer — Minimal Raw Socket Packet Capturer (C)
 
-A basic network packet sniffer written in C for Linux systems. This utility uses raw sockets to capture all network traffic visible to the host interface and parses the Ethernet (Layer 2) and IP (Layer 3) headers.
+A basic, educational packet sniffer for Linux using raw sockets.
+Design goals: **simplicity**, **no dependencies**, **direct kernel interaction**—uses standard Linux headers (`<linux/if_packet.h>`, `<netinet/ip.h>`) instead of libpcap.
 
-Description
+---
 
-This program creates a raw socket (AF_PACKET, SOCK_RAW) to intercept all incoming and outgoing frames (ETH_P_ALL). It then manually parses the raw binary data by casting standard Linux protocol structures over the buffer.
+## Features
 
-It currently extracts and displays:
+- **Raw Capture**: Uses `PF_PACKET` / `SOCK_RAW` to see all Ethernet frames (promiscuous mode).
+- **Ethernet (L2)**: Extracts destination/source MAC addresses and EtherType.
+- **IPv4 (L3)**: Extracts Version, IHL, Total Length, TTL, Protocol, and src/dst IP addresses.
+- **Protocol Identification**: Identifies basic L4 protocols (TCP, UDP) via generic helper.
+- **Loud Output**: Immediate console printing of captured header details.
 
-Ethernet Header: Source MAC, Destination MAC, and Protocol type.
+---
 
-IP Header: Version, IHL, TOS, Total Length, ID, TTL, Protocol (TCP/UDP/Other), Checksum, Source IP, and Destination IP.
+## Why this sniffer?
 
-Prerequisites
+Typical packet capture tools rely on heavy libraries like `libpcap`.
 
-Operating System: Linux (relies on <linux/if_packet.h> and standard Linux kernel network structures).
+This project demonstrates:
+- **Direct Socket Access**: How to open `AF_PACKET` sockets in standard C.
+- **Manual Parsing**: How to overlay standard Linux structs (`struct ethhdr`, `struct iphdr`) onto raw memory buffers.
+- **Kernel Structures**: Direct usage of standard Linux networking headers.
 
-Permissions: Root privileges (required to open a SOCK_RAW socket).
-
-Compiler: GCC or Clang.
-
-Compilation
-
-Save the code to a file (e.g., sniffer.c) and compile it using gcc:
-
-gcc -o sniffer sniffer.c
+---
 
 
-Usage
 
-Because raw sockets require elevated privileges to access the network interface directly, you must run the resulting executable with sudo:
 
+## Project Layout
+
+```text
+.
+├── sniffer.c           # Complete implementation
+└── README.md           # This documentation
+```
+
+## Build
+
+```text
+gcc sniffer.c -o sniffer
 sudo ./sniffer
 
+```
 
-To stop the sniffer, use Ctrl+C.
 
-Output Example
+## Expected output
+
+```text
+
 
 $$$$$$$$$$$$$$$$$$$$$PACKET RECEIVBED$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 Ethernet Header
-	|-Source Address : 00-0C-29-XX-XX-XX
-	|-Destination Address : 00-50-56-XX-XX-XX
-	|-Protocol : 8
-	|-Version : 4
+    |-Source Address : 00-0C-29-4F-8E-35
+    |-Destination Address : 00-50-56-C0-00-08
+    |-Protocol : 8
+    |-Version : 4
 
 IP Header
-	|-Internet Header Length : 20 Bytes
-	|-Type Of Service : 0
-	|-Total Length : 84 Bytes
-	|-Identification : 54321
-	|-Time To Live : 64
-	|-Protocol : 1 (ICMP)
-	|-Header Checksum : 12345
-	|-Source IP : 192.168.1.5
-	|-Destination IP : 8.8.8.8
+    |-Internet Header Length : 20 Bytes
+    |-Type Of Service : 0
+    |-Total Length : 84 Bytes
+    |-Identification : 29403
 
 
-Disclaimer
 
-This tool is intended for educational and testing purposes only. Ensure you have permission to capture traffic on the network you are testing.
+    |-Time To Live : 64
+    |-Protocol : 1 (ICMP)
+    |-Header Checksum : 45779
+    |-Source IP : 192.168.1.20
+    |-Destination IP : 8.8.8.8
+```
+
+## EDesign Notes & Limitations
+
+
+- **Linux Only**: Relies on Linux-specific <linux/if_packet.h> and raw socket behavior.
+
+- **IPv4 Assumption**: Currently assumes incoming frames are IPv4 for simplicity; does not yet filter for ARP or IPv6 before casting the IP header.
+
+- **Blocking I/O**: Uses a simple recvfrom loop; will block until traffic arrives.
+
+- **Buffer Size**: Uses a static 65536 byte buffer to ensure capture of full MTU frames (including loopback).
+
+
